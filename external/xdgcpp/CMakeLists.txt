@@ -1,0 +1,147 @@
+cmake_minimum_required(VERSION 3.6)
+project(xdgcpp VERSION 0.1.0)
+
+option(WARNINGS "Enable extra compiler warnings" OFF)
+option(WERROR "Treat warnings as errors" OFF)
+
+set(WARNINGS_CXX_FLAGS "")
+if(WERROR)
+  list(APPEND WARNINGS_CXX_FLAGS -Werror)
+endif()
+if(WARNINGS)
+  list(APPEND WARNINGS_CXX_FLAGS -Wall -Wextra)
+  if(CMAKE_COMPILER_IS_GNUCXX)
+    list(APPEND WARNINGS_CXX_FLAGS
+      -Wcast-align
+      -Wcast-qual
+      -Wconversion
+      -Wctor-dtor-privacy
+      -Wdisabled-optimization
+      -Wdouble-promotion
+      -Weffc++
+      -Wformat=2
+      -Winit-self
+      -Winvalid-pch
+      -Wlogical-op
+      -Wmissing-format-attribute
+      -Wmissing-noreturn
+      -Wno-suggest-attribute=noreturn
+      -Wunused-parameter
+      -Wnon-virtual-dtor
+      -Wold-style-cast
+      -Woverloaded-virtual
+      -Wpacked
+      -Wredundant-decls
+      -Wshadow
+      -Wsign-promo
+      -Wstrict-null-sentinel
+      -Wsuggest-override
+      -Wunreachable-code
+      -Wzero-as-null-pointer-constant
+      -pedantic
+    )
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8)
+      list(APPEND WARNINGS_CXX_FLAGS -Wint-in-bool-context)
+    endif()
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    list(APPEND WARNINGS_CXX_FLAGS
+      -Weverything
+      -Wno-c++98-compat
+      -Wno-c++98-compat-pedantic
+      -Wno-float-equal
+      -Wno-padded
+      -Wno-weak-vtables
+      -Wno-disabled-macro-expansion
+      -Wno-documentation
+      -Wno-reserved-id-macro
+      -Wno-sign-conversion
+      -Wno-gnu-zero-variadic-macro-arguments
+      -Wno-poison-system-directories
+      -Wno-documentation-unknown-command
+      -Wno-inconsistent-missing-destructor-override
+      -Wno-deprecated-dynamic-exception-spec
+      -Wno-deprecated
+      -Wno-switch-enum
+      -Wno-covered-switch-default
+      -Wno-exit-time-destructors
+      -Wno-global-constructors
+      -Wno-duplicate-enum
+      -Wno-unused-parameter
+      -Wno-old-style-cast
+      -Wno-unreachable-code-break
+      -Wno-double-promotion
+      -Wno-unused-private-field
+      -Wno-unused-exception-parameter
+    )
+  endif()
+endif()
+
+
+include(GNUInstallDirs)
+
+set(XDG_BUILD_TESTS OFF CACHE BOOL "Toggles building of the xdg test suite")
+
+set(XDGCPP_VERSION ${PROJECT_VERSION})
+
+add_library(xdgcpp STATIC src/xdg.cpp)
+target_compile_options(xdgcpp PRIVATE ${WARNINGS_CXX_FLAGS})
+add_library(xdgcpp::xdgcpp ALIAS xdgcpp)
+set_property(TARGET xdgcpp PROPERTY CXX_STANDARD 17)
+set_target_properties(xdgcpp PROPERTIES PUBLIC_HEADER "include/xdg.h")
+target_include_directories(xdgcpp PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/xdgcpp>
+  )
+add_executable(xdgcpp-info src/xdg_info.cpp)
+set_property(TARGET xdgcpp-info PROPERTY CXX_STANDARD 17)
+target_link_libraries(xdgcpp-info xdgcpp)
+
+if(XDG_BUILD_TESTS)
+  find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+
+  enable_testing()
+  add_executable(xdgcpp_test src/xdg_test.cpp)
+  set_property(TARGET xdgcpp_test PROPERTY CXX_STANDARD 17)
+  target_compile_definitions(xdgcpp_test PRIVATE
+    -DBOOST_TEST_DYN_LINK
+    -DBOOST_TEST_MAIN
+    -DBOOST_TEST_MODULE=xdgcpp
+    )
+  target_link_libraries(xdgcpp_test
+    xdgcpp
+    Boost::unit_test_framework
+    )
+
+  add_test(xdgcpp_test xdgcpp_test)
+endif()
+
+# Packaging only when built as a standalone top-level project.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  install(TARGETS xdgcpp xdgcpp-info
+    EXPORT xdgcpp-targets
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}"
+    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
+
+  # CMake integration
+  configure_file(xdgcpp-config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/xdgcpp-config.cmake" @ONLY)
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/xdgcpp-config.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/xdgcpp/")
+  export(TARGETS xdgcpp
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/xdgcpp-targets.cmake")
+  export(PACKAGE xdgcpp)
+  install(EXPORT xdgcpp-targets
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/xdgcpp/")
+
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig/xdgcpp.pc.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/xdgcpp.pc"
+    @ONLY)
+
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/xdgcpp.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+endif()
+
+# EOF #
