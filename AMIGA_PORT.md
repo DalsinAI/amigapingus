@@ -1,6 +1,6 @@
 # Amiga port intake: Pingus
 
-- Port Atlas: [g-pingus](https://www.amigachrome.com/ports/#g-pingus)
+- Port Atlas: [g-pingus](https://www.amicradle.com/ports/#g-pingus)
 - Priority: `P2`
 - Atlas decision: `evaluate`
 - Upstream source: `https://github.com/Pingus/pingus`
