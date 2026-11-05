@@ -22,7 +22,7 @@
 #include <ostream>
 #include <stdexcept>
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__amigaos__)
 #  include <sys/ioctl.h>
 #endif
 
@@ -35,7 +35,7 @@ constexpr int default_terminal_width = 80;
 
 int get_terminal_width()
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__amigaos__)
   return 80;
 #else
   struct winsize w;

@@ -28,7 +28,9 @@
 
 #include "engine/display/sdl_framebuffer.hpp"
 #include "engine/screen/screen_manager.hpp"
+#ifndef PINGUS_NO_OPENGL
 #include "engine/display/opengl/opengl_framebuffer.hpp"
+#endif
 #include "engine/display/null_framebuffer.hpp"
 
 namespace pingus {
@@ -110,7 +112,12 @@ Display::create_window(FramebufferType framebuffer_type, geom::isize const& size
   switch (framebuffer_type)
   {
     case FramebufferType::OPENGL:
+#ifndef PINGUS_NO_OPENGL
       fb = std::unique_ptr<Framebuffer>(new OpenGLFramebuffer());
+#else
+      // Built without OpenGL (the Amiga port): the SDL framebuffer does it.
+      fb = std::unique_ptr<Framebuffer>(new SDLFramebuffer());
+#endif
       break;
 
     case FramebufferType::NULL_FRAMEBUFFER:

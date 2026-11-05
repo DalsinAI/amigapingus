@@ -21,7 +21,9 @@
 #include <logmich/log.hpp>
 
 #include "engine/sound/sound_dummy.hpp"
-#ifndef PINGUS_NO_SOUND
+#if defined(PINGUS_SDL_MIXER)
+#include "amiga_sound.hpp"
+#elif !defined(PINGUS_NO_SOUND)
 #include "engine/sound/sound_real.hpp"
 #endif
 #include "pingus/globals.hpp"
@@ -40,7 +42,11 @@ PingusSound::init(std::unique_ptr<PingusSoundImpl> s)
     {
 #ifndef PINGUS_NO_SOUND
       try {
+#ifdef PINGUS_SDL_MIXER
+        PingusSound::init(std::make_unique<PingusSoundMixer>());
+#else
         PingusSound::init(std::make_unique<PingusSoundReal>());
+#endif
       } catch (std::exception const& err) {
         log_error("Sound Error: {}", err.what());
         log_error("Sound will be disabled");

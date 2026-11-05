@@ -24,10 +24,27 @@
 #include "math/size.hpp"
 #include "util/pathname.hpp"
 
+#ifdef __amigaos__
+// amiga/amiga_screens.c: SDL2.module 0.6 leaves empty "SDL" screens behind
+// a fullscreen window when the program ends.
+extern "C" void amiga_screens_snapshot(void);
+extern "C" void amiga_screens_close_leftovers(void);
+namespace {
+void amiga_sdl_quit()
+{
+  SDL_Quit();
+  amiga_screens_close_leftovers();
+}
+} // namespace
+#endif
+
 namespace pingus {
 
 SDLSystem::SDLSystem()
 {
+#ifdef __amigaos__
+  amiga_screens_snapshot();
+#endif
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0)
   {
     log_error("Unable to initialize SDL: {}", SDL_GetError());
@@ -35,7 +52,11 @@ SDLSystem::SDLSystem()
   }
   else
   {
+#ifdef __amigaos__
+    atexit(amiga_sdl_quit);
+#else
     atexit(SDL_Quit);
+#endif
   }
 }
 
