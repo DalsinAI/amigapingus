@@ -76,6 +76,21 @@ Surface::Surface(Pathname const& pathname) :
   }
   else
   {
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+    // Pingus reads 32-bit pictures as R,G,B,A bytes (alpha in byte 3:
+    // collision masks, ground map, blits). Make sure the loader's layout
+    // is that one on a big-endian machine too.
+    if (surface->format->BitsPerPixel == 32 &&
+        surface->format->format != SDL_PIXELFORMAT_RGBA32)
+    {
+      SDL_Surface* conv = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA32, 0);
+      if (conv)
+      {
+        SDL_FreeSurface(surface);
+        surface = conv;
+      }
+    }
+#endif
     impl.reset(new SurfaceImpl(surface));
   }
 }
@@ -185,7 +200,7 @@ Surface::blit(Surface src, int x_pos, int y_pos)
           tptr[2] = blue;
           tptr[3] = alpha;
         }
-        else if (sptr[3] == 0)
+        else if (alpha == 0)
         {
           // do nothing
         }
@@ -329,7 +344,11 @@ Surface::get_pixel(int x, int y) const
       break;
 
     case 3:
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+      pixel = static_cast<Uint32>(p[0] << 16 | p[1] << 8 | p[2]);
+#else
       pixel = static_cast<Uint32>(p[0] | p[1] << 8 | p[2] << 16);
+#endif
       break;
 
     case 4:

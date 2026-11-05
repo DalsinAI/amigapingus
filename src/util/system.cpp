@@ -356,7 +356,29 @@ void
 System::create_dir(std::string const& directory_)
 {
   std::string directory = directory_;
-#ifndef WIN32
+#if defined(__amigaos__)
+  // One mkdir() per missing part: std::filesystem::create_directories
+  // knows no "PROGDIR:" volume part, and a "/" after ':' is the parent.
+  if (!exist(directory))
+  {
+    if (!directory.empty() && directory.back() == '/')
+      directory.pop_back();
+    for (size_t i = directory.find(':') == std::string::npos ? 0 : directory.find(':') + 1;
+         i <= directory.size(); ++i)
+    {
+      if (i == directory.size() || directory[i] == '/')
+      {
+        std::string part = directory.substr(0, i);
+        if (!part.empty() && part.back() != ':' && !exist(part) &&
+            mkdir(part.c_str(), 0755) != 0)
+        {
+          raise_exception(std::runtime_error, "System::create_dir: " << part << ": " << strerror(errno));
+        }
+      }
+    }
+    log_info("Successfully created: {}", directory);
+  }
+#elif !defined(WIN32)
   if (!exist(directory))
   {
     auto end = directory.end() - 1;
@@ -448,6 +470,10 @@ System::find_userdir()
     return std::string(internal) + "/pingus/";
   }
   raise_exception(std::runtime_error, "SDL_AndroidGetInternalStoragePath returned null");
+#elif defined(__amigaos__)
+  // The Amiga port: settings, savegames and the level cache in the
+  // drawer, beside the program.
+  return "PROGDIR:user/";
 #elif defined(PINGUS_NO_XDGCPP)
   // R36S / other embedded Linux without xdgcpp: XDG-ish path under $HOME.
   if (char const* homedir = getenv("HOME"))
@@ -865,9 +891,10 @@ System::write_file(std::string const& filename, std::string const& content)
 {
   log_debug("writing {}", filename);
 
-#ifdef WIN32
+#if defined(WIN32) || defined(__amigaos__)
   // FIXME: not save
-  std::ofstream out(filename);
+  // (The Amiga port too: AmigaDOS's Rename() won't replace a file.)
+  std::ofstream out(filename, std::ios::binary);
   out.write(content.data(), content.size());
 #else
   // build the filename: "/home/foo/outfile.pngXXXXXX"

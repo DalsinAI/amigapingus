@@ -173,6 +173,21 @@ ConfigManager::get_resizable() const
   return m_opts.resizable.get();
 }
 
+namespace {
+
+SDL_Window* pingus_window()
+{
+#ifdef PINGUS_NO_OPENGL
+  // No GL context without OpenGL (the Amiga port): Pingus' only window.
+  SDL_Window* window = SDL_GetKeyboardFocus();
+  return window ? window : SDL_GetWindowFromID(1);
+#else
+  return SDL_GL_GetCurrentWindow();
+#endif
+}
+
+} // namespace
+
 void
 ConfigManager::set_mouse_grab(bool v)
 {
@@ -180,7 +195,7 @@ ConfigManager::set_mouse_grab(bool v)
 
   if (v != get_mouse_grab())
   {
-    SDL_SetWindowGrab(SDL_GL_GetCurrentWindow(), static_cast<SDL_bool>(v));
+    SDL_SetWindowGrab(pingus_window(), static_cast<SDL_bool>(v));
     on_mouse_grab_change(v);
   }
 
@@ -190,7 +205,7 @@ ConfigManager::set_mouse_grab(bool v)
 bool
 ConfigManager::get_mouse_grab() const
 {
-  return SDL_GetWindowGrab(SDL_GL_GetCurrentWindow());
+  return SDL_GetWindowGrab(pingus_window());
 }
 
 void

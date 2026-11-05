@@ -681,10 +681,18 @@ PingusMain::run(int argc, char** argv)
       fbtype = cmd_options.framebuffer_type.get();
     }
 
+#ifdef __amigaos__
+    // The Amiga port: a 640x480 screen of its own unless -w is given.
+    bool fullscreen = cmd_options.fullscreen.is_set() ? cmd_options.fullscreen.get() : true;
+    bool resizable  = cmd_options.resizable.is_set()  ? cmd_options.resizable.get()  : false;
+
+    Size screen_size(640, 480);
+#else
     bool fullscreen = cmd_options.fullscreen.is_set() ? cmd_options.fullscreen.get() : false;
     bool resizable  = cmd_options.resizable.is_set()  ? cmd_options.resizable.get()  : true;
 
     Size screen_size(1024, 768);
+#endif
 #ifdef ANDROID
     // Fullscreen is forced in OpenGLFramebuffer. Exact size is taken from
     // the drawable after window creation (surface is often not 1024x768).

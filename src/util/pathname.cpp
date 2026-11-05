@@ -43,7 +43,7 @@ Pathname::join(std::string const& lhs, std::string const& rhs)
   }
   else
   {
-    if (*lhs.rbegin() == '/')
+    if (*lhs.rbegin() == '/' || *lhs.rbegin() == ':') // "PROGDIR:" on the Amiga
     {
       return lhs + rhs;
     }
@@ -138,6 +138,10 @@ Pathname::str() const
 bool
 Pathname::absolute() const
 {
+#ifdef __amigaos__
+  if (pathname.find(':') != std::string::npos) // "Work:Pingus/levels/x"
+    return true;
+#endif
   return !pathname.empty() && pathname[0] == '/';
 }
 

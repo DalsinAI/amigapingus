@@ -1,0 +1,24 @@
+{
+  "about": "The Workbench icons of the Pingus drawer: python3 AMICRADLE/scripts/port_icons.py amiga/icons/icons.json --out amiga/icons (DalsinAI/amicradle). The art is Pingus' own program icon (data/icons/hicolor/128x128/apps/pingus.png: art/pingus.png). Pingus-drawer.info is the drawer's own icon, Pingus.info beside the drawer; it has its own name here so as not to meet the program's Pingus.info. Data.info is the icon of every subdrawer (data and everything in it, user): the Makefile copies it to each name. ReadMe.info serves ReadMe and the licence files.",
+  "drawer": {
+    "name": "Pingus",
+    "file": "Pingus-drawer.info"
+  },
+  "badge": "art/pingus.png",
+  "icons": [
+    {
+      "file": "Pingus.info",
+      "kind": "tool",
+      "stack": 1048576
+    },
+    {
+      "file": "ReadMe.info",
+      "kind": "readme"
+    },
+    {
+      "file": "Data.info",
+      "kind": "drawer",
+      "type": "drawer"
+    }
+  ]
+}

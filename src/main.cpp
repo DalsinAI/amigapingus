@@ -20,6 +20,16 @@
 
 int main(int argc, char** argv)
 {
+#ifdef __amigaos__
+  // Started from the Workbench, libnix gives argc 0 and no arguments.
+  static char prog_name[] = "Pingus";
+  static char* wb_argv[] = { prog_name, nullptr };
+  if (argc == 0)
+  {
+    argc = 1;
+    argv = wb_argv;
+  }
+#endif
   pingus::PingusMain app;
   return app.run(argc, argv);
 }

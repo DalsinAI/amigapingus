@@ -1,0 +1,132 @@
+# Pingus for AmigaOS 3.x, 68040/68060 + FPU, on OpenGPU's SDL 2.
+#
+#   make -f amiga/Makefile.amigaos -j2 \
+#        STOVE=/path/to/openamigagcc-16.2.0-open4 \
+#        NDK=/path/to/OpenNDK/Include_H SDL2KIT=/path/to/opengpu-sdk
+#   make -f amiga/Makefile.amigaos dist
+#
+# STOVE is GFOpenAmigaGCC 16.2.0-open4 or later (C++23, libstdc++ with
+# <filesystem> and <format>). SDL2KIT is the OpenGPU developer kit:
+# libSDL2.a, libSDL2_image.a and libSDL2_mixer.a, the program's halves of
+# LIBS:OpenGPU/SDL2.module, SDL2_image.module and SDL2_mixer.module.
+# Upstream's CMake build is replaced by this file: the same sources, the
+# helper libraries from external/ built in, no OpenGL (the SDL_Renderer
+# framebuffer only), no xdgcpp, no jsoncpp, and SDL2_mixer in place of
+# wstsound/OpenAL (amiga/amiga_sound.cpp). glm (headers only) is in
+# amiga/deps/; the sigc++ subset is upstream's own (mk/android/app/jni).
+# Never more than -j2: the C++ is heavy and the build machine short of
+# memory.
+
+STOVE   ?= $(HOME)/CradleLab/toolchain/openamigagcc-16.2.0-open4-x86_64-linux
+NDK     ?= $(HOME)/CradleLab/gfopensdk/OpenNDK/Include_H
+SDL2KIT ?= /mnt/amigachrome/team2/deps/opengpu-sdk
+GLM     ?= amiga/deps/glm-1.0.1
+CC      = $(STOVE)/bin/m68k-amigaos-gcc
+CXX     = $(STOVE)/bin/m68k-amigaos-g++
+STRIP   = $(STOVE)/bin/m68k-amigaos-strip
+CPU     ?= -m68040 -m68881
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile (the kit's
+# sdl2-config gives it for GCC 16 too).
+OPT     ?= -O2 -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+VERSION_STR = $(shell cat VERSION)-amiga
+DEFS    = -DNDEBUG -DPROJECT_VERSION='"$(VERSION_STR)"' -DPROJECT_NAME='"pingus"' \
+          -DPINGUS_DEFAULT_DATADIR='"PROGDIR:data"' -DPINGUS_NO_XDGCPP=1 \
+          -DPINGUS_SDL_MIXER=1 -DPINGUS_NO_OPENGL=1 -DPRIO_USE_SEXPCPP -DPRIO_VERSION='"0.0.0"' \
+          -DTINYGETTEXT_WITH_SDL -DGLM_ENABLE_EXPERIMENTAL \
+          -DSEXP_HAVE_FROM_CHARS_FLOAT -DSEXP_HAVE_TO_CHARS_FLOAT
+EXT     = argpp geomcpp logmich priocpp sexpcpp strutcpp tinygettext
+# As the helpers' CMakeLists.txt: include/ public, include/<name>/ and
+# src/ for their own files.
+EXTNAME = argpp geom logmich prio sexp strut tinygettext
+INC     = -Iamiga -Isrc $(EXT:%=-Iexternal/%/include) \
+          $(join $(EXT:%=-Iexternal/%/include/),$(EXTNAME)) \
+          -Iexternal/priocpp/src -Iexternal/argpp/src \
+          -I$(GLM) -Imk/android/app/jni \
+          -I$(SDL2KIT)/include/SDL2 -I$(SDL2KIT)/include
+CXXFLAGS = -noixemul -std=c++23 -fexceptions $(OPT) $(CPU) $(DEFS) $(INC)
+CFLAGS   = -noixemul $(OPT) $(CPU)
+AMIGAWARN = -Wall -Wextra -Wno-unused-parameter
+LDFLAGS = -noixemul $(CPU)
+LIBS    = -L$(SDL2KIT)/lib -lSDL2_mixer -lSDL2_image -lSDL2 -lm
+BUILD   = build/amigaos
+OBJDIR  = $(BUILD)/obj
+OUT     = dist/Pingus
+PROG    = Pingus
+
+# As CMakeLists.txt's PINGUS_SOURCES_CXX, without the OpenGL framebuffer
+# and the wstsound backend.
+PINGUS_DIRS = editor engine/display engine/display/delta engine/gui \
+          engine/input engine/resource engine/screen engine/sound \
+          engine/system math pingus pingus/actions pingus/colliders \
+          pingus/components pingus/ecs pingus/movers pingus/particles \
+          pingus/screens pingus/worldmap util
+EXCLUDE = src/engine/sound/sound_real.cpp \
+          external/priocpp/src/json_reader_impl.cpp \
+          external/priocpp/src/json_writer_impl.cpp \
+          external/priocpp/src/jsonpretty_writer_impl.cpp
+SRC     = $(sort $(filter-out $(EXCLUDE), \
+          $(wildcard $(PINGUS_DIRS:%=src/%/*.cpp)) src/main.cpp \
+          $(foreach e,$(EXT),$(wildcard external/$(e)/src/*.cpp))))
+AMIGA_CXX = amiga_sound amiga_stubs
+AMIGA_C   = stack pthread_stubs amiga_screens
+OBJS    = $(SRC:%.cpp=$(OBJDIR)/%.o) \
+          $(AMIGA_CXX:%=$(OBJDIR)/amiga/%.o) $(AMIGA_C:%=$(OBJDIR)/amiga/%.o)
+
+ICONS   = $(wildcard amiga/icons/*.info)
+
+all: $(BUILD)/$(PROG)
+
+$(BUILD)/$(PROG): $(OBJS)
+	$(CXX) $(LDFLAGS) -o $@.debug $(OBJS) $(LIBS)
+	$(STRIP) -o $@ $@.debug
+
+# The drawer: the program, Pingus' own data (without the desktop icons,
+# the art's sources and the translators' scripts), the ReadMe and the
+# licences. PNGs with RGB (no alpha) pixels are stored as RGBA:
+# SDL2_image.module 0.6 damages the emulator's heap on some of them
+# (amiga/tools/png_rgba.py, run on every drawer of the data; it prints how many it changed).
+dist: $(BUILD)/$(PROG) $(ICONS) AMIGA_PORT.md
+	rm -rf $(OUT)
+	mkdir -p $(OUT)
+	cp $(BUILD)/$(PROG) $(OUT)/$(PROG)
+	cp -R data $(OUT)/data
+	rm -rf $(OUT)/data/icons
+	find $(OUT)/data \( -name '*.xcf' -o -name '*.svg' -o -name '*.pot' \
+	     -o -name '*.sh' -o -name '*.py' -o -name '*.guile' -o -name '*.ico' \
+	     -o -name '*.icns' -o -name '*.old' \) -exec rm -f {} +
+	find $(OUT)/data -type d -exec python3 amiga/tools/png_rgba.py {} + | wc -l
+	mkdir -p $(OUT)/user
+	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp LICENSE.txt $(OUT)/COPYING.txt
+	cp AUTHORS $(OUT)/AUTHORS.txt
+	cp amiga/deps/glm-1.0.1/copying.txt $(OUT)/glm-copying.txt
+	cp amiga/icons/Pingus.info amiga/icons/ReadMe.info $(OUT)/
+	for f in COPYING.txt AUTHORS.txt glm-copying.txt; do \
+	  cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
+	cd $(OUT) && find . -mindepth 1 -type d | while read d; do cp $(CURDIR)/amiga/icons/Data.info "$$d.info"; done
+	cp amiga/icons/Pingus-drawer.info dist/Pingus.info
+
+$(OBJDIR)/amiga/%.o: amiga/%.c
+	@mkdir -p $(dir $@)
+	@echo "  CC   $<"
+	@$(CC) $(CFLAGS) $(AMIGAWARN) -I$(NDK) -c -o $@ $<
+
+$(OBJDIR)/amiga/%.o: amiga/%.cpp
+	@mkdir -p $(dir $@)
+	@echo "  CXX  $<"
+	@$(CXX) $(CXXFLAGS) $(AMIGAWARN) -c -o $@ $<
+
+# Upstream's files build with upstream's default warnings (its CMake adds
+# none unless WARNINGS=ON).
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "  CXX  $<"
+	@$(CXX) $(CXXFLAGS) -Wno-unused-parameter -c -o $@ $<
+
+objs: $(OBJS)
+
+clean:
+	rm -rf $(BUILD) $(OUT) dist/Pingus.info
+
+.PHONY: all dist objs clean

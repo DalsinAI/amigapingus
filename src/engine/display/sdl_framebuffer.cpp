@@ -78,7 +78,7 @@ SDLFramebuffer::make_screenshot() const
   {
     Surface screenshot(w, h);
     int ret = SDL_RenderReadPixels(m_renderer, nullptr,
-                                   SDL_PIXELFORMAT_ABGR8888,
+                                   SDL_PIXELFORMAT_RGBA32, // R,G,B,A bytes, as Surface(w, h)
                                    screenshot.get_data(),
                                    screenshot.get_pitch());
     if (ret != 0)
@@ -226,7 +226,9 @@ SDLFramebuffer::set_video_mode(geom::isize const& size, bool fullscreen, bool re
 
   // Drop any GL attributes left by a failed OpenGLFramebuffer attempt so the
   // KMSDRM backend does not keep treating this as an EGL/GLES window.
+#ifndef PINGUS_NO_OPENGL
   SDL_GL_ResetAttributes();
+#endif
   SDL_ClearError();
 
   {
@@ -244,7 +246,13 @@ SDLFramebuffer::set_video_mode(geom::isize const& size, bool fullscreen, bool re
 
   int req_w = size.width();
   int req_h = size.height();
+#ifdef __amigaos__
+  // The Amiga port: a screen of the size asked for (640x480 by default),
+  // not one as big as the Workbench's; the 68k draws every pixel.
+  if (false)
+#else
   if (fullscreen)
+#endif
   {
     SDL_DisplayMode mode;
     if (SDL_GetDesktopDisplayMode(0, &mode) == 0 && mode.w > 0 && mode.h > 0)
@@ -259,8 +267,12 @@ SDLFramebuffer::set_video_mode(geom::isize const& size, bool fullscreen, bool re
   int n = 0;
   if (fullscreen)
   {
+#ifdef __amigaos__
+    attempts[n++] = Attempt{"fullscreen-exclusive", SDL_WINDOW_FULLSCREEN};
+#else
     attempts[n++] = Attempt{"fullscreen-desktop", SDL_WINDOW_FULLSCREEN_DESKTOP};
     attempts[n++] = Attempt{"fullscreen-exclusive", SDL_WINDOW_FULLSCREEN};
+#endif
   }
   attempts[n++] = Attempt{"windowed",
                           static_cast<Uint32>(resizable && !fullscreen ? SDL_WINDOW_RESIZABLE : 0)};
@@ -326,7 +338,13 @@ SDLFramebuffer::set_video_mode(geom::isize const& size, bool fullscreen, bool re
   // and can fail with the same "EGL window surface" error as the GL path.
   SDL_ClearError();
   char const* drv = SDL_GetCurrentVideoDriver();
+#ifdef __amigaos__
+  // No OpenGL on the Amiga port: SDL's software renderer.
+  bool prefer_sw = true;
+  (void)drv;
+#else
   bool prefer_sw = (drv && (std::string(drv) == "KMSDRM" || std::string(drv) == "kmsdrm"));
+#endif
   if (prefer_sw)
   {
     m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_SOFTWARE);
