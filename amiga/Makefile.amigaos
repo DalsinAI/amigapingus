@@ -39,8 +39,12 @@ EXT     = argpp geomcpp logmich priocpp sexpcpp strutcpp tinygettext
 # As the helpers' CMakeLists.txt: include/ public, include/<name>/ and
 # src/ for their own files.
 EXTNAME = argpp geom logmich prio sexp strut tinygettext
+# tinygettext/include/tinygettext is left out: its dirent.h (a Windows
+# shim) would hide the system <dirent.h>; its headers find each other
+# by their own folder.
 INC     = -Iamiga -Isrc $(EXT:%=-Iexternal/%/include) \
-          $(join $(EXT:%=-Iexternal/%/include/),$(EXTNAME)) \
+          $(filter-out -Iexternal/tinygettext/include/tinygettext, \
+            $(join $(EXT:%=-Iexternal/%/include/),$(EXTNAME))) \
           -Iexternal/priocpp/src -Iexternal/argpp/src \
           -I$(GLM) -Imk/android/app/jni \
           -I$(SDL2KIT)/include/SDL2 -I$(SDL2KIT)/include
