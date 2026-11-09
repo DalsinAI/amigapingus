@@ -104,7 +104,6 @@ dist: $(BUILD)/$(PROG) $(ICONS) AMIGA_PORT.md
 	cp amiga/icons/Pingus.info amiga/icons/ReadMe.info $(OUT)/
 	for f in COPYING.txt AUTHORS.txt glm-copying.txt; do \
 	  cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
-	cd $(OUT) && find . -mindepth 1 -type d | while read d; do cp $(CURDIR)/amiga/icons/Data.info "$$d.info"; done
 	cp amiga/icons/Pingus-drawer.info dist/Pingus.info
 
 $(OBJDIR)/amiga/%.o: amiga/%.c
