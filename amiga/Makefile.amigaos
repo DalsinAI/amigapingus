@@ -98,6 +98,7 @@ dist: $(BUILD)/$(PROG) $(ICONS) AMIGA_PORT.md
 	find $(OUT)/data -type d -exec python3 amiga/tools/png_rgba.py {} + | wc -l
 	mkdir -p $(OUT)/user
 	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp amiga/Controls $(OUT)/Controls
 	cp LICENSE.txt $(OUT)/COPYING.txt
 	cp AUTHORS $(OUT)/AUTHORS.txt
 	cp amiga/deps/glm-1.0.1/copying.txt $(OUT)/glm-copying.txt
